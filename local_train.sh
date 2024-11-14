@@ -17,3 +17,5 @@ else
     python ./tools/train.py \
         ${config}
 fi
+
+# python tools/train.py projects/configs/sparse4dv3_temporal_r50_1x8_bs6_256x704.py

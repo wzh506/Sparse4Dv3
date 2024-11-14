@@ -1,0 +1,3 @@
+# ninja log v5
+4	37776	1731570622307851629	/new-disk/wangzhaohui/Sparse4Dv3/projects/mmdet3d_plugin/ops/build/temp.linux-x86_64-cpython-38/src/deformable_aggregation_cuda.o	1473b5ccc8e3c76c
+0	47268	1731570631801075559	/new-disk/wangzhaohui/Sparse4Dv3/projects/mmdet3d_plugin/ops/build/temp.linux-x86_64-cpython-38/src/deformable_aggregation.o	2e658542b1c64a83

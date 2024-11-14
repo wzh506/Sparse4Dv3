@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "sparse4dv3",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/tools/train.py",
+            "args": [
+                "projects/configs/sparse4dv3_temporal_r50_1x8_bs6_256x704.py"//,
+     //           "--work-dir=work_dirs/sparse4d_r101_H1"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                //"CUDA_VISIBLE_DEVICES": "", // 没有显卡可用时就这么设置
+                "PYTHONPATH": "${workspaceFolder}:${env:PYTHONPATH}"
+            }
+        }
+    ]
+}
