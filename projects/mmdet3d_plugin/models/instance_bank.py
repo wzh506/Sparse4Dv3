@@ -9,7 +9,7 @@ from mmcv.cnn.bricks.registry import PLUGIN_LAYERS
 
 __all__ = ["InstanceBank"]
 
-
+#返回前k个元素
 def topk(confidence, k, *inputs):
     bs, N = confidence.shape[:2]
     confidence, indices = torch.topk(confidence, k, dim=1)
@@ -79,7 +79,7 @@ class InstanceBank(nn.Module):
         self.temp_confidence = None
         self.instance_id = None
         self.prev_id = 0
-
+    #存储过去时刻的anchoer,feature,时间间隔
     def get(self, batch_size, metas=None, dn_metas=None):
         instance_feature = torch.tile(
             self.instance_feature[None], (batch_size, 1, 1)
@@ -109,7 +109,7 @@ class InstanceBank(nn.Module):
                     self.cached_anchor,
                     [T_temp2cur],
                     time_intervals=[-time_interval],
-                )[0]
+                )[0] 
 
             if (
                 self.anchor_handler is not None
@@ -139,7 +139,7 @@ class InstanceBank(nn.Module):
         return (
             instance_feature,
             anchor,
-            self.cached_feature,
+            self.cached_feature,#只有上个时刻的数据？？
             self.cached_anchor,
             time_interval,
         )
@@ -173,7 +173,7 @@ class InstanceBank(nn.Module):
         )
         anchor = torch.where(self.mask[:, None, None], selected_anchor, anchor)
         if self.instance_id is not None:
-            self.instance_id = torch.where(
+            self.instance_id = torch.where(#根据mask来控制instance_id中-1
                 self.mask[:, None],
                 self.instance_id,
                 self.instance_id.new_tensor(-1),
@@ -207,14 +207,14 @@ class InstanceBank(nn.Module):
                 self.confidence * self.confidence_decay,
                 confidence[:, : self.num_temp_instances],
             )
-        self.temp_confidence = confidence
+        self.temp_confidence = confidence#上个时刻的c保存
 
         (
             self.confidence,
             (self.cached_feature, self.cached_anchor),
         ) = topk(confidence, self.num_temp_instances, instance_feature, anchor)
 
-    def get_instance_id(self, confidence, anchor=None, threshold=None):
+    def get_instance_id(self, confidence, anchor=None, threshold=None):#confidence就是cls,anchor就是box
         confidence = confidence.max(dim=-1).values.sigmoid()
         instance_id = confidence.new_full(confidence.shape, -1).long()
 

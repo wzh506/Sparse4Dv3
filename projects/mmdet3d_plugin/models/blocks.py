@@ -291,13 +291,13 @@ class DenseDepthNet(BaseModule):
         else:
             focal = focal.reshape(-1)
         depths = []
-        for i, feat in enumerate(feature_maps[: self.num_depth_layers]):
+        for i, feat in enumerate(feature_maps[: self.num_depth_layers]):#只用前3维
             depth = self.depth_layers[i](feat.flatten(end_dim=1).float()).exp()
             depth = depth.transpose(0, -1) * focal / self.equal_focal
             depth = depth.transpose(0, -1)
-            depths.append(depth)
+            depths.append(depth)#每次depth大小都不相同
         if gt_depths is not None and self.training:
-            loss = self.loss(depths, gt_depths)
+            loss = self.loss(depths, gt_depths)#在这里就输出监督？？
             return loss
         return depths
 

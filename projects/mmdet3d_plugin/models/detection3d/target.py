@@ -161,7 +161,7 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
         return cost
 
     def get_dn_anchors(self, cls_target, box_target, gt_instance_id=None):
-        if self.num_dn_groups <= 0:
+        if self.num_dn_groups <= 0:#设为5，这个是每个gt包含多少个noise,这个变量哪里定义的
             return None
         if self.num_temp_dn_groups <= 0:
             gt_instance_id = None
@@ -203,10 +203,10 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
             if gt_instance_id is not None:
                 gt_instance_id = gt_instance_id.tile(self.num_dn_groups, 1)
 
-        noise = torch.rand_like(box_target) * 2 - 1
-        noise *= box_target.new_tensor(self.dn_noise_scale)
-        dn_anchor = box_target + noise
-        if self.add_neg_dn:
+        noise = torch.rand_like(box_target) * 2 - 1 #创建噪声
+        noise *= box_target.new_tensor(self.dn_noise_scale) 
+        dn_anchor = box_target + noise #box_target是gt的box，noise是噪声,这一组是正样本
+        if self.add_neg_dn:#还要生成一组负样本
             noise_neg = torch.rand_like(box_target) + 1
             flag = torch.where(
                 torch.rand_like(box_target) > 0.5,
@@ -283,12 +283,12 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
         attn_mask = attn_mask == 1
         dn_cls_target = dn_cls_target.long()
         return (
-            dn_anchor,
-            dn_box_target,
-            dn_cls_target,
-            attn_mask,
+            dn_anchor,     #torch.Size([1, 320, 10])
+            dn_box_target, #torch.Size([1, 320, 10])
+            dn_cls_target, #torch.Size([1, 320])
+            attn_mask,     #torch.Size([320, 320])
             valid_mask,
-            dn_id_target,
+            dn_id_target,#
         )
 
     def update_dn(
@@ -427,7 +427,7 @@ class SparseBox3DTarget(BaseTargetWithDenoising):
             dn_id_target = dn_id_target.reshape(
                 bs, num_dn_groups, num_temp_dn
             )[:, temp_group_mask]
-        self.dn_metas = dict(
+        self.dn_metas = dict(#这个是保留这个时刻的dn信息
             dn_instance_feature=dn_instance_feature,
             dn_anchor=dn_anchor,
             dn_cls_target=dn_cls_target,

@@ -53,7 +53,7 @@ def feature_maps_format(feature_maps, inverse=False):
             shape_index += cam_split[i]
         return mc_ms_feat
 
-    if isinstance(feature_maps[0], (list, tuple)):
+    if isinstance(feature_maps[0], (list, tuple)):#首次是tensor
         formated = [feature_maps_format(x) for x in feature_maps]
         col_feats = torch.cat([x[0] for x in formated], dim=1)
         spatial_shape = torch.cat([x[1] for x in formated], dim=0)
@@ -88,5 +88,5 @@ def feature_maps_format(feature_maps, inverse=False):
         col_feats,
         spatial_shape,
         scale_start_index,
-    ]
+    ]#按行的特征向量，每个相机的特征图大小，每个相机的特征图的起始索引( 89760=6*(++++))
     return feature_maps

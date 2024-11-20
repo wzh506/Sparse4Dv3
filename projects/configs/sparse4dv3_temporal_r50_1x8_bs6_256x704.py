@@ -56,12 +56,12 @@ LGD 1.89
 # ================ base config ===================
 plugin = True
 plugin_dir = "projects/mmdet3d_plugin/"
-dist_params = dict(backend="nccl")
+dist_params = dict(backend="nccl")#?
 log_level = "INFO"
 work_dir = None
 
-total_batch_size = 48
-num_gpus = 8
+total_batch_size = 8 #先把batch设为1运行
+num_gpus = 2
 batch_size = total_batch_size // num_gpus
 num_iters_per_epoch = int(28130 // (num_gpus * batch_size))
 num_epochs = 100
@@ -102,7 +102,7 @@ class_names = [
 
 num_classes = len(class_names)
 embed_dims = 256
-num_groups = 8
+num_groups = 8 #还有对应的是GT objects
 num_decoder = 6
 num_single_frame_decoder = 1
 use_deformable_func = True  # mmdet3d_plugin/ops/setup.py needs to be executed

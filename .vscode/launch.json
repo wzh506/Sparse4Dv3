@@ -11,7 +11,7 @@
      //           "--work-dir=work_dirs/sparse4d_r101_H1"
             ],
             "console": "integratedTerminal",
-            "justMyCode": false,
+            "justMyCode": true,
             "env": {
                 //"CUDA_VISIBLE_DEVICES": "", // 没有显卡可用时就这么设置
                 "PYTHONPATH": "${workspaceFolder}:${env:PYTHONPATH}"

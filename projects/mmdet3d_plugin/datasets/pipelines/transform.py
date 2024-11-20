@@ -4,7 +4,7 @@ from mmcv.parallel import DataContainer as DC
 from mmdet.datasets.builder import PIPELINES
 from mmdet.datasets.pipelines import to_tensor
 
-
+# 看看这里gt_depth产生的逻辑
 @PIPELINES.register_module()
 class MultiScaleDepthMapGenerator(object):
     def __init__(self, downsample=1, max_depth=60):
@@ -16,17 +16,17 @@ class MultiScaleDepthMapGenerator(object):
     def __call__(self, input_dict):
         points = input_dict["points"][..., :3, None]
         gt_depth = []
-        for i, lidar2img in enumerate(input_dict["lidar2img"]):
-            H, W = input_dict["img_shape"][i][:2]
+        for i, lidar2img in enumerate(input_dict["lidar2img"]):#每个相机的标定矩阵
+            H, W = input_dict["img_shape"][i][:2]#但是lidar的数据应该是不能覆盖整张图像的把
 
             pts_2d = (
-                np.squeeze(lidar2img[:3, :3] @ points, axis=-1)
+                np.squeeze(lidar2img[:3, :3] @ points, axis=-1)#lidar转移到相机坐标系下
                 + lidar2img[:3, 3]
             )
             pts_2d[:, :2] /= pts_2d[:, 2:3]
             U = np.round(pts_2d[:, 0]).astype(np.int32)
             V = np.round(pts_2d[:, 1]).astype(np.int32)
-            depths = pts_2d[:, 2]
+            depths = pts_2d[:, 2]#pts只有34400，图像有180224，大约1/6，z轴直接作为深度
             mask = np.logical_and.reduce(
                 [
                     V >= 0,
@@ -37,11 +37,11 @@ class MultiScaleDepthMapGenerator(object):
                     # depths <= self.max_depth,
                 ]
             )
-            V, U, depths = V[mask], U[mask], depths[mask]
+            V, U, depths = V[mask], U[mask], depths[mask]#滤除部分不在图像范围的点
             sort_idx = np.argsort(depths)[::-1]
             V, U, depths = V[sort_idx], U[sort_idx], depths[sort_idx]
             depths = np.clip(depths, 0.1, self.max_depth)
-            for j, downsample in enumerate(self.downsample):
+            for j, downsample in enumerate(self.downsample):#下采样4，8，16
                 if len(gt_depth) < j + 1:
                     gt_depth.append([])
                 h, w = (int(H / downsample), int(W / downsample))

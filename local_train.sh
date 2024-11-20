@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0,1
 export PYTHONPATH=$PYTHONPATH:./
 
 gpus=(${CUDA_VISIBLE_DEVICES//,/ })
@@ -19,3 +19,5 @@ else
 fi
 
 # python tools/train.py projects/configs/sparse4dv3_temporal_r50_1x8_bs6_256x704.py
+# nohup bash local_train.sh sparse4dv3_temporal_r50_1x8_bs6_256x704 > train.log 2>&1 & 3949
+# nohup python train.py > train.log 2>&1 &

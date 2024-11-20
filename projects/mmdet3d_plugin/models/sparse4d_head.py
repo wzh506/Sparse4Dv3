@@ -141,7 +141,7 @@ class Sparse4DHead(BaseModule):
         query_pos=None,
         key_pos=None,
         **kwargs,
-    ):
+    ):# instance_feature = self.graph_model(i,instance_feature,value=instance_feature,query_pos=anchor_embed,attn_mask=attn_mask,)
         if self.decouple_attn:
             query = torch.cat([query, query_pos], dim=-1)
             if key is not None:
@@ -149,16 +149,16 @@ class Sparse4DHead(BaseModule):
             query_pos, key_pos = None, None
         if value is not None:
             value = self.fc_before(value)
-        return self.fc_after(
+        return self.fc_after( #key==none怎么办
             self.layers[index](
-                query,
-                key,
-                value,
+                query,#instancefeature+anhor_embed #torch.Size([1, 1220, 512])
+                key,#temp_instancefeature+temp_anhor_embed #torch.Size([1, 600, 512])#从900个中继承下来的600个
+                value,#temp_instancefeature+temp_anhor_embed #torch.Size([1, 600, 512])
                 query_pos=query_pos,
                 key_pos=key_pos,
-                **kwargs,
+                **kwargs,#attn_mask 会把query和key计算得到的scores对应部分清0
             )
-        )
+        )#<class 'mmcv.cnn.bricks.transformer.MultiheadAttention'>
 
     def forward(
         self,
@@ -171,9 +171,9 @@ class Sparse4DHead(BaseModule):
 
         # ========= get instance info ============
         if (
-            self.sampler.dn_metas is not None
+            self.sampler.dn_metas is not None #完全copy自DN-DETR
             and self.sampler.dn_metas["dn_anchor"].shape[0] != batch_size
-        ):
+        ): 
             self.sampler.dn_metas = None
         (
             instance_feature,
@@ -182,10 +182,10 @@ class Sparse4DHead(BaseModule):
             temp_anchor,
             time_interval,
         ) = self.instance_bank.get(
-            batch_size, metas, dn_metas=self.sampler.dn_metas
-        )
+            batch_size, metas, dn_metas=self.sampler.dn_metas #
+        ) #
 
-        # ========= prepare for denosing training ============
+        # ========= prepare for denosing training ============,全部都是缝合DN-DETR的代码
         # 1. get dn metas: noisy-anchors and corresponding GT
         # 2. concat learnable instances and noisy instances
         # 3. get attention mask
@@ -193,7 +193,7 @@ class Sparse4DHead(BaseModule):
         dn_metas = None
         temp_dn_reg_target = None
         if self.training and hasattr(self.sampler, "get_dn_anchors"):
-            if "instance_id" in metas["img_metas"][0]:
+            if "instance_id" in metas["img_metas"][0]:#具有跟踪模式
                 gt_instance_id = [
                     torch.from_numpy(x["instance_id"]).cuda()
                     for x in metas["img_metas"]
@@ -204,7 +204,7 @@ class Sparse4DHead(BaseModule):
                 metas[self.gt_cls_key],
                 metas[self.gt_reg_key],
                 gt_instance_id,
-            )
+            )  # 这里有问题,为什么设置attn==40,关gt_instance_id什么事
         if dn_metas is not None:
             (
                 dn_anchor,
@@ -215,7 +215,7 @@ class Sparse4DHead(BaseModule):
                 dn_id_target,
             ) = dn_metas
             num_dn_anchor = dn_anchor.shape[1]
-            if dn_anchor.shape[-1] != anchor.shape[-1]:
+            if dn_anchor.shape[-1] != anchor.shape[-1]:#-1表示最后一维
                 remain_state_dims = anchor.shape[-1] - dn_anchor.shape[-1]
                 dn_anchor = torch.cat(
                     [
@@ -226,7 +226,7 @@ class Sparse4DHead(BaseModule):
                     ],
                     dim=-1,
                 )
-            anchor = torch.cat([anchor, dn_anchor], dim=1)
+            anchor = torch.cat([anchor, dn_anchor], dim=1)#这里是把dn_anchor拼接到anchor上，也就是所谓的two set of anchors,
             instance_feature = torch.cat(
                 [
                     instance_feature,
@@ -242,13 +242,13 @@ class Sparse4DHead(BaseModule):
                 (num_instance, num_instance), dtype=torch.bool
             )
             attn_mask[:num_free_instance, :num_free_instance] = False
-            attn_mask[num_free_instance:, num_free_instance:] = dn_attn_mask
+            attn_mask[num_free_instance:, num_free_instance:] = dn_attn_mask #这个mask的含义还是得去研究一下
 
         anchor_embed = self.anchor_encoder(anchor)
         if temp_anchor is not None:
             temp_anchor_embed = self.anchor_encoder(temp_anchor)
         else:
-            temp_anchor_embed = None
+            temp_anchor_embed = None # 第一帧，还没有temp_anchor
 
         # =================== forward the layers ====================
         prediction = []
@@ -257,37 +257,37 @@ class Sparse4DHead(BaseModule):
         for i, op in enumerate(self.operation_order):
             if self.layers[i] is None:
                 continue
-            elif op == "temp_gnn":
+            elif op == "temp_gnn":#cross attention
                 instance_feature = self.graph_model(
                     i,
-                    instance_feature,
-                    temp_instance_feature,
-                    temp_instance_feature,
+                    instance_feature,#query
+                    temp_instance_feature,#key
+                    temp_instance_feature,#value
                     query_pos=anchor_embed,
                     key_pos=temp_anchor_embed,
                     attn_mask=attn_mask
                     if temp_instance_feature is None
-                    else None,
+                    else None, #cross attention就不需要attn_mask
                 )
-            elif op == "gnn":
+            elif op == "gnn":#self attention
                 instance_feature = self.graph_model(
                     i,
                     instance_feature,
                     value=instance_feature,
                     query_pos=anchor_embed,
                     attn_mask=attn_mask,
-                )
+                ) #这里key=none，通过attn_mask阻止denoiseanchoer与learnable anchor之间的交互
             elif op == "norm" or op == "ffn":
                 instance_feature = self.layers[i](instance_feature)
-            elif op == "deformable":
-                instance_feature = self.layers[i](
+            elif op == "deformable": #和v2,v1没有区别
+                instance_feature = self.layers[i](#anchor torch.Size([1, 1220, 11]) 1220=900+320(900是自由的，320是噪声的)
                     instance_feature,
                     anchor,
                     anchor_embed,
                     feature_maps,
                     metas,
                 )
-            elif op == "refine":
+            elif op == "refine":#最后一层作为输出
                 anchor, cls, qt = self.layers[i](
                     instance_feature,
                     anchor,
@@ -302,7 +302,7 @@ class Sparse4DHead(BaseModule):
                 prediction.append(anchor)
                 classification.append(cls)
                 quality.append(qt)
-                if len(prediction) == self.num_single_frame_decoder:
+                if len(prediction) == self.num_single_frame_decoder:#采用decoder第一层的输出作为存储？
                     instance_feature, anchor = self.instance_bank.update(
                         instance_feature, anchor, cls
                     )
@@ -317,7 +317,7 @@ class Sparse4DHead(BaseModule):
                             temp_dn_reg_target,
                             temp_dn_cls_target,
                             temp_valid_mask,
-                            dn_id_target,
+                            dn_id_target,#id难道则个
                         ) = self.sampler.update_dn(
                             instance_feature,
                             anchor,
@@ -342,7 +342,7 @@ class Sparse4DHead(BaseModule):
 
         output = {}
 
-        # split predictions of learnable instances and noisy instances
+        # split predictions of learnable instances and noisy instances ,观察如何计算loss，确定分组（不是我预测的id呢）
         if dn_metas is not None:
             dn_classification = [
                 x[:, num_free_instance:] for x in classification
@@ -369,7 +369,7 @@ class Sparse4DHead(BaseModule):
                         "temp_dn_reg_target": temp_dn_reg_target,
                         "temp_dn_cls_target": temp_dn_cls_target,
                         "temp_dn_valid_mask": temp_valid_mask,
-                        "dn_id_target": dn_id_target,
+                        "dn_id_target": dn_id_target,#建立在上个时刻的id是基本正确的
                     }
                 )
                 dn_cls_target = temp_dn_cls_target
@@ -381,7 +381,7 @@ class Sparse4DHead(BaseModule):
             cls = cls[:, :num_free_instance]
 
             # cache dn_metas for temporal denoising
-            self.sampler.cache_dn(
+            self.sampler.cache_dn( #保存sampler，供下个时刻初始化使用
                 dn_instance_feature,
                 dn_anchor,
                 dn_cls_target,
@@ -398,9 +398,9 @@ class Sparse4DHead(BaseModule):
 
         # cache current instances for temporal modeling
         self.instance_bank.cache(
-            instance_feature, anchor, cls, metas, feature_maps
+            instance_feature, anchor, cls, metas, feature_maps #metas也保留了
         )
-        if not self.training:
+        if not self.training:#训练得时候
             instance_id = self.instance_bank.get_instance_id(
                 cls, anchor, self.decoder.score_threshold
             )
