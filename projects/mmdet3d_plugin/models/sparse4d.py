@@ -29,7 +29,7 @@ class Sparse4D(BaseDetector):
     def __init__(
         self,
         img_backbone,
-        head,
+        head,#字典传入
         img_neck=None,
         init_cfg=None,
         train_cfg=None,
@@ -61,7 +61,7 @@ class Sparse4D(BaseDetector):
 
     @auto_fp16(apply_to=("img",), out_fp32=True)#这个装饰器是干嘛的
     def extract_feat(self, img, return_depth=False, metas=None):
-        bs = img.shape[0]#bs=6
+        bs = img.shape[0]#bs=4
         if img.dim() == 5:  # multi-view
             num_cams = img.shape[1]
             img = img.flatten(end_dim=1)
@@ -98,7 +98,7 @@ class Sparse4D(BaseDetector):
 
     def forward_train(self, img, **data):#data中的id是谁给的
         feature_maps, depths = self.extract_feat(img, True, data)#feature_maps(整理为DAF输入模式)，depths不同尺度特征图结合焦距获得的深度
-        model_outs = self.head(feature_maps, data)#instance_id呢？应该包含tracking功能
+        model_outs = self.head(feature_maps, data)#instance_id呢？应该包含tracking功能.head
         output = self.head.loss(model_outs, data)
         if depths is not None and "gt_depth" in data:
             output["loss_dense_depth"] = self.depth_branch.loss(

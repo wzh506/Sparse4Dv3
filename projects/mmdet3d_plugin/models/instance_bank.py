@@ -23,7 +23,8 @@ def topk(confidence, k, *inputs):
 
 
 @PLUGIN_LAYERS.register_module()
-class InstanceBank(nn.Module):
+# @LOSSES.register_module()
+class InstanceBank(nn.Module):#instance_bank和Instances有点像...
     def __init__(
         self,
         num_anchor,

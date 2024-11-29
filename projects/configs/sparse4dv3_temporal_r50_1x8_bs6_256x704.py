@@ -60,7 +60,7 @@ dist_params = dict(backend="nccl")#?
 log_level = "INFO"
 work_dir = None
 
-total_batch_size = 8 #先把batch设为1运行
+total_batch_size = 8 #先把batch设为1运行,所以每个文件是4
 num_gpus = 2
 batch_size = total_batch_size // num_gpus
 num_iters_per_epoch = int(28130 // (num_gpus * batch_size))
